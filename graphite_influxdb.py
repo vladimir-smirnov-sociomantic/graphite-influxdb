@@ -125,8 +125,11 @@ class InfluxdbReader(object):
 
         try:
             known_points = data[0]['points']
-        except Exception:
+        except KeyError:
             logger.debug(caller="fetch()", msg="COULDN'T READ POINTS. SETTING TO EMPTY LIST", debug_key=self.path)
+            known_points = []
+        except Exception as e:
+            logger.debug(caller="fetch()", msg="UNKNOWN EXCEPTION WHILE READING POINTS: %s" % e, debug_key=self.path)
             known_points = []
         logger.debug(caller="fetch()", msg="invoking fix_datapoints()", debug_key=self.path)
         datapoints = InfluxdbReader.fix_datapoints(known_points, start_time, end_time, self.step, self.path)
@@ -224,7 +227,7 @@ class InfluxdbFinder(object):
         try:
             from graphite_api.app import app
             self.cache = app.cache
-        except:
+        except ImportError:
             from django.core.cache import cache
             self.cache = cache
 
