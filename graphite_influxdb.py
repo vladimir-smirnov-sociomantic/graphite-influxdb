@@ -1,6 +1,9 @@
 import re
 import time
 
+from operator import itemgetter
+from collections import OrderedDict
+
 # graphite-api and graphite-web have different logging systems
 try:
     from graphite_api.intervals import Interval, IntervalSet
@@ -136,7 +139,7 @@ class InfluxdbReader(object):
 
     @staticmethod
     def fix_datapoints_multi(data, start_time, end_time, step):
-        out = {}
+        out = OrderedDict()
         """
         data looks like:
         [{u'columns': [u'time', u'sequence_number', u'value'],
@@ -336,11 +339,12 @@ class InfluxdbFinder(object):
         logger.debug(caller='fetch_multi', query=query)
         logger.debug(caller='fetch_multi', start_time=print_time(start_time), end_time=print_time(end_time), step=step)
         with statsd.timer('service=graphite-api.ext_service=influxdb.target_type=gauge.unit=ms.action=select_datapoints'):
-            data = self.client.query(query)
-        logger.debug(caller='fetch_multi', returned_data=data)
-        if not len(data):
-            data = [{'name': node.path, 'points': []} for node in nodes]
-            logger.debug(caller='fetch_multi', FIXING_DATA_TO=data)
+            unordered_data = self.client.query(query)
+        logger.debug(caller='fetch_multi', returned_data=unordered_data)
+        if not len(unordered_data):
+            unordered_data = [{'name': node.path, 'points': []} for node in nodes]
+            logger.debug(caller='fetch_multi', FIXING_DATA_TO=unordered_data)
+        data = sorted(unordered_data, key=itemgetter('name'))
         logger.debug(caller='fetch_multi', len_datapoints_before_fixing=len(data))
 
         with statsd.timer('service=graphite-api.action=fix_datapoints_multi.target_type=gauge.unit=ms'):
